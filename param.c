@@ -98,6 +98,17 @@ int ReadParam(char *fname) {
   return 0;
 }
 
-int main() {
-  
+int isTargetIPAddr(struct in_addr *addr) {
+  if (Param.vip.s_addr == addr->s_addr) {
+    return 1;
+  }
+  return 0;
+}
+
+int isSameSubnet(struct in_addr *addr) {
+  if ((addr->s_addr & Param.vmask.s_addr) == (Param.vip.s_addr & Param.vmask.s_addr)) {
+    return 1;
+  } else {
+    return 0;
+  }
 }
