@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/if_ether.h>
 #include <arpa/inet.h>
