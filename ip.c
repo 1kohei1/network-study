@@ -144,7 +144,7 @@ int IpRecvBufSearch(u_int16_t id) {
   return -1;
 }
 
-int IpRecv(int soc u_int8_t *raw, int raw_len, struct ether_header *eh, u_int8_t *data, int len) {
+int IpRecv(int soc, u_int8_t *raw, int raw_len, struct ether_header *eh, u_int8_t *data, int len) {
   struct ip *ip;
   u_int8_t option[1500];
   u_int16_t sum;
