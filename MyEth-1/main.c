@@ -23,6 +23,7 @@ int EndFlag = 0;
 int DeviceSoc;
 PARAM Param;
 
+// Handle ping request to the program
 void *MyEthThread(void *arg) {
 	int nready;
 	struct pollfd targets[1];
@@ -78,6 +79,49 @@ void *MyEthThread(void *arg) {
 					} else {
 						EtherRecv(DeviceSoc, buf, len);
 					}
+				}
+				break;
+		}
+	}
+
+	return NULL;
+}
+
+void *StdInThread(void *arg) {
+	int nready;
+	struct pollfd targets[1];
+	char buf[2048];
+
+	// Get the file descriptor number from the standard in
+	// http://man7.org/linux/man-pages/man3/fileno.3p.html
+	// stdin is defined in stdio.c
+	targets[0].fd = fileno(stdin);
+	targets[0].events = POLLIN | POLLERR;
+
+	while (EndFlag == 0) {
+		switch ((nready = poll(targets, 1, 1000))) {
+			case -1:
+				if (errno != EINTR) {
+					if (errno & EFAULT) {
+						printf("The array given as argument was not contained in the "
+						 "calling program's address space.");
+					} else if (errno & EINVAL) {
+						printf("The nfds value exceeds the RLIMIT_NOFILE value");
+					} else if (errno & ENOMEM) {
+						printf("There was no space to allocate file descriptor tables");
+					}
+					perror("MyEthThread: Error happened while polling");
+				}
+			case 0:
+				break;
+			default:
+				if (targets[0].revents & (POLLIN | POLLERR)) {
+					// fgets: get a string from a stream
+					// This reads one line
+					// http://man7.org/linux/man-pages/man3/fgets.3p.html
+					fgets(buf, sizeof(buf), stdin);
+					DoCmd(buf);
+
 				}
 				break;
 		}
