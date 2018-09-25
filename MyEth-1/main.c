@@ -19,9 +19,13 @@
 #include "param.h"
 #include "cmd.h"
 
+// DEV
+// referts to the code commented out to see if code compiles.
+// So when actually running, replace it with empty string.
+
 int EndFlag = 0;
 int DeviceSoc;
-PARAM Param;
+// DEV PARAM Param;
 
 // Handle ping request to the program
 void *MyEthThread(void *arg) {
@@ -53,15 +57,7 @@ void *MyEthThread(void *arg) {
 				// errno is defined by including errno.h
 				// http://man7.org/linux/man-pages/man3/errno.3.html
 				if (errno != EINTR) {
-					if (errno & EFAULT) {
-						printf("The array given as argument was not contained in the "
-						 "calling program's address space.");
-					} else if (errno & EINVAL) {
-						printf("The nfds value exceeds the RLIMIT_NOFILE value");
-					} else if (errno & ENOMEM) {
-						printf("There was no space to allocate file descriptor tables");
-					}
-					perror("MyEthThread: Error happened while polling");
+					perror("main.c: MyEthThread: poll");
 				}
 				break;
 			case 0: // The call timed out
@@ -75,9 +71,9 @@ void *MyEthThread(void *arg) {
 						// Yes. Look at http://man7.org/linux/man-pages/man2/read.2.html
 						// for what error read could return. 
 						// Change here when I see this error often.
-						perror("MyEthThread: Failed to read from the device");
+						perror("main.c: MyEthThread: read");
 					} else {
-						EtherRecv(DeviceSoc, buf, len);
+						// DEV EtherRecv(DeviceSoc, buf, len);
 					}
 				}
 				break;
@@ -102,16 +98,9 @@ void *StdInThread(void *arg) {
 		switch ((nready = poll(targets, 1, 1000))) {
 			case -1:
 				if (errno != EINTR) {
-					if (errno & EFAULT) {
-						printf("The array given as argument was not contained in the "
-						 "calling program's address space.");
-					} else if (errno & EINVAL) {
-						printf("The nfds value exceeds the RLIMIT_NOFILE value");
-					} else if (errno & ENOMEM) {
-						printf("There was no space to allocate file descriptor tables");
-					}
-					perror("MyEthThread: Error happened while polling");
+					perror("main.c: StdInThread: poll");
 				}
+				break;
 			case 0:
 				break;
 			default:
@@ -120,7 +109,7 @@ void *StdInThread(void *arg) {
 					// This reads one line
 					// http://man7.org/linux/man-pages/man3/fgets.3p.html
 					fgets(buf, sizeof(buf), stdin);
-					DoCmd(buf);
+					// DEV DoCmd(buf);
 
 				}
 				break;
@@ -128,6 +117,50 @@ void *StdInThread(void *arg) {
 	}
 
 	return NULL;
+}
+
+void sig_term(int sig) {
+	EndFlag = 1;
+}
+
+// Called in the main function to wrap up the command
+int ending() {
+	// ifreq is used to configure network devices.
+	// http://man7.org/linux/man-pages/man7/netdevice.7.html
+	struct ifreq if_req;
+	printf("ending\n");
+
+	if (DeviceSoc != -1) {
+		// Copy Param.device to if_req.ifr_name
+		// ifr_name is the name of the interface.
+		// Used to specify which device ifreq is pointing to
+		// DEV strcpy(if_req.ifr_name, Param.device);
+
+		// Get the active flag word of the device.
+		// ifr_flags contains a bit mask of device state.
+		// You can see the list of the device state at
+		// http://man7.org/linux/man-pages/man7/netdevice.7.html
+		// ioctl receives int for file descriptor and and unsigned long int
+		// in the second parameter, and return the requested info
+		// -1 indicates error
+		if (ioctl(DeviceSoc, SIOCGIFFLAGS, &if_req) < 0) {
+			perror("main.c: ending: ioctl1");
+		}
+
+		// Reset "Received all packets" state in the socket.
+		if_req.ifr_flags = if_req.ifr_flags & ~IFF_PROMISC;
+
+		// Set the active flag word of the device.
+		// This is privileged operation. It may fail because of the user access
+		if (ioctl(DeviceSoc, SIOCSIFFLAGS, &if_req) < 0) {
+			perror("main.c: ending: ioctl2");
+		}
+
+		close(DeviceSoc);
+		DeviceSoc = -1;
+	}
+
+	return 0;
 }
 
 int main(int argc, char* argv[]) {
